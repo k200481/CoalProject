@@ -16,7 +16,8 @@ CountToDos PROTO
 NO_ERROR = 0
 FILE_ERROR = 1
 USER_NOT_LOADED = 2
-ERROR_RANGE = 3
+INVALID_TODO_ID = 3
+ERROR_RANGE = 4
 
 .data
 	ERROR_MSG_LEN = 30
@@ -24,6 +25,7 @@ ERROR_RANGE = 3
 	errorTable	BYTE "No Errors                     ",0
 				BYTE "Error loading file            ",0
 				BYTE "No user loaded to the database",0
+				BYTE "Todo ID not found             ",0
 	unknownError BYTE "Unkown error code",0
 
 	; headings
@@ -97,9 +99,8 @@ DisplayUnfinished PROC
 
 	jmp WHILE1
 	ENDWHILE1:
-	
-	mov eax, filehandle
-	call CloseFile
+
+	INVOKE CloseHandle, filehandle
 
 RETURN:
 	popad
@@ -150,9 +151,8 @@ DisplayCompleted PROC
 
 	jmp WHILE1
 	ENDWHILE1:
-	
-	mov eax, filehandle
-	call CloseFile
+
+	INVOKE CloseHandle, filehandle
 
 RETURN:
 	popad
@@ -198,7 +198,70 @@ RETURN:
 	ret
 AddNew ENDP
 
-MarkAsDone PROC, ID:PTR BYTE
+MarkAsDone PROC, ID:DWORD
+	LOCAL filehandle:HANDLE, filename:PTR BYTE, td:TODO, numWritten:DWORD, found:BYTE
+	pushad
+
+	mov err, 0
+	mov found, 0
+
+	_IF1:cmp uPTr, 0
+	jne _ENDIF1
+		mov err, USER_NOT_LOADED
+		jmp RETURN
+	_ENDIF1:
+
+	INVOKE GetName, uPTr
+	mov filename, eax
+
+	mov ebx, GENERIC_READ
+	OR ebx, GENERIC_WRITE
+
+	INVOKE CreateFile, filename, ebx, 
+		DO_NOT_SHARE, 0, OPEN_EXISTING, 
+		FILE_ATTRIBUTE_NORMAL, 0
+	
+	_IF2:cmp eax, INVALID_HANDLE_VALUE
+	jne _ENDIF2
+		mov err, FILE_ERROR
+		jmp RETURN
+	_ENDIF2:
+	mov filehandle, eax
+
+	WHILE1: ; while true
+		
+		mov eax, filehandle
+		mov ecx, TODO_SIZE
+		lea edx, td
+		call ReadFromFile
+		cmp eax, 0
+		je ENDWHILE1
+
+		mov eax, ID
+		_IF3:cmp eax, [td.ID]
+		jne _ENDIF3
+			
+			mov td.completed, 1
+			; move back
+			INVOKE SetFilePointer, filehandle, -TODO_SIZE, 0, FILE_CURRENT
+			INVOKE WriteFile, filehandle, ADDR td, TODO_SIZE, ADDR numWritten, 0
+			mov found, 1
+
+		_ENDIF3:
+
+	jmp WHILE1
+	ENDWHILE1:
+
+	_IF4:cmp [found], 0
+	jne _ENDIF4
+		mov err, INVALID_TODO_ID
+	_ENDIF4:
+
+	INVOKE CloseHandle, filehandle
+
+RETURN:
+	popad
+	mov eax, err
 	ret
 MarkAsDone ENDP
 
@@ -218,7 +281,7 @@ ToDo_DisplayErrorMsg PROC
 	_ENDIF1:
 
 	mov eax, err
-	mov ebx, ERROR_MSG_LEN
+	mov ebx, ERROR_MSG_LEN + 1
 	mul ebx
 	mov esi, offset errortable
 	lea edx, [esi + eax]
@@ -261,8 +324,7 @@ CountToDos PROC
 	jmp WHILE1
 	ENDWHILE1:
 
-	mov eax, filehandle
-	call CloseFile
+	INVOKE CloseHandle, filehandle
 
 RETURN:
 	popad

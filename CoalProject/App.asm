@@ -11,6 +11,7 @@ StartupMenu PROTO
 MainMenu PROTO
 
 ToDoAddScreen PROTO
+MarkToDoAsDoneScreen PROTO
 
 .data
 	; startup menu prompts
@@ -35,10 +36,12 @@ ToDoAddScreen PROTO
 					BYTE "Enter choice: ",0
 	
 	; todo adding prompts
-	
 	addTodoPrompt	BYTE "Add To-do",0Ah, 0Dh
 					BYTE "To-do may be up to 100 characters, enter empty line to exit",0Ah,0Dh
 					BYTE "Enter To-do description: ",0Ah,0Dh,0
+
+	; marking todo as done prompt
+	markToDoPrompt	BYTE "Enter ID of completed to-do: ",0
 
 	uPTr DWORD 0 ; is a non-zero value when logged in
 
@@ -219,6 +222,7 @@ MainMenu PROC
 			_IF1:cmp eax, 0
 			je _ENDIF1
 				INVOKE ToDo_DisplayErrorMsg
+				call crlf
 			_ENDIF1:
 			jmp ENDSWITCH ; break
 		CASE2: cmp eax, 2
@@ -228,6 +232,7 @@ MainMenu PROC
 			_IF2:cmp eax, 0
 			je _ENDIF1
 				INVOKE ToDo_DisplayErrorMsg
+				call crlf
 			_ENDIF2:
 			jmp ENDSWITCH ; break
 		CASE3: cmp eax, 3
@@ -238,7 +243,7 @@ MainMenu PROC
 		CASE4: cmp eax, 4
 		jne CASE5
 			call Clrscr
-			; INVOKE MarkAsDone
+			INVOKE MarkToDoAsDoneScreen
 			jmp ENDSWITCH ; break
 		CASE5: cmp eax, 5
 		jne DEFAULT
@@ -289,5 +294,25 @@ RETURN:
 	popad
 	ret
 ToDoAddScreen ENDP
+
+MarkToDoAsDoneScreen PROC
+	pushad
+
+	mov edx, offset markToDoPrompt
+	call WriteString
+	call ReadDec
+
+	INVOKE MarkAsDone, eax
+	_IF1:cmp eax, 0
+	je _ENDIF
+		INVOKE ToDo_DisplayErrorMsg
+		call crlf
+		jmp RETURN
+	_ENDIF:
+
+RETURN:
+	popad
+	ret
+MarkToDoAsDoneScreen ENDP
 
 END

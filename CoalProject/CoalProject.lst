@@ -1,5 +1,5 @@
-Microsoft (R) Macro Assembler Version 14.29.30137.0	    12/19/21 21:55:56
-App.asm							     Page 1 - 1
+Microsoft (R) Macro Assembler Version 14.29.30137.0	    12/20/21 00:16:50
+ToDo.asm						     Page 1 - 1
 
 
 				INCLUDE irvine32.inc
@@ -19,11 +19,6 @@ App.asm							     Page 1 - 1
 			      C 
 			      C .NOLIST
 			      C .LIST
-			      C 
-				INCLUDE App.inc
-			      C 
-			      C ; just one function
-			      C Run PROTO
 			      C 
 				INCLUDE User.inc
 			      C ;INCLUDE irvine32.inc
@@ -53,360 +48,399 @@ App.asm							     Page 1 - 1
 			      C DisplayCompleted PROTO
 			      C 
 			      C AddNew PROTO, desc:PTR BYTE
-			      C MarkAsDone PROTO, ID:PTR BYTE
+			      C MarkAsDone PROTO, ID:DWORD
 			      C 
 			      C ToDo_DisplayErrorMsg PROTO
 			      C 
-				OPTION PROC:PRIVATE
+				INCLUDE FileHandling.inc
+			      C 
+			      C ; appends given date at the end of an existing file, or
+			      C ; creates a new file if one does not exist
+			      C AppendFile PROTO, filename:PTR BYTE, data:PTR BYTE, len:DWORD
+			      C 
+			      C ; searches file for given data
+			      C SearchFile PROTO, filename:PTr BYTE, data:PTR BYTE, len:DWORD
+			      C 
 
-				; private funcs
-				LoginScreen PROTO
-				SignupScreen PROTO
-				StartupMenu PROTO
-				MainMenu PROTO
+ 00000069			TODO STRUCT
+ 00000000  00000000			ID DWORD ?
+ 00000004  00000064 [			description BYTE MAX_DESC_LEN DUP(0)
+	    00
+	   ]
+ 00000068  01				completed BYTE 1
+				TODO ENDS
 
-				ToDoAddScreen PROTO
+				; private func
+				CountToDos PROTO
+
+				; error codes
+ = 00000000			NO_ERROR = 0
+ = 00000001			FILE_ERROR = 1
+ = 00000002			USER_NOT_LOADED = 2
+ = 00000003			INVALID_TODO_ID = 3
+ = 00000004			ERROR_RANGE = 4
 
  00000000			.data
-					; startup menu prompts
- 00000000 31 3A 20 4C 6F		startupMenuOptions	BYTE "1: Login",0Ah, 0Dh
-	   67 69 6E 0A 0D
- 0000000A  32 3A 20 53 69							BYTE "2: Signup", 0Ah, 0Dh
-	   67 6E 75 70 0A
-	   0D
- 00000015  43 68 6F 69 63							BYTE "Choice: ",0
-	   65 3A 20 00
- 0000001E 49 6E 76 61 6C		incorrectChoice BYTE "Invalid choice",0Ah,0Dh,0
-	   69 64 20 63 68
-	   6F 69 63 65 0A
-	   0D 00
-					
-					; Login/Signup screen prompts
- 0000002F 57 65 6C 63 6F		welcomeMsg BYTE "Welcome",0
-	   6D 65 00
- 00000037 45 6E 74 65 72		usernamePrompt BYTE "Enter username: ",0
-	   20 75 73 65 72
-	   6E 61 6D 65 3A
-	   20 00
- 00000048 45 6E 74 65 72		passwordPrompt BYTE "Enter password: ",0
-	   20 70 61 73 73
-	   77 6F 72 64 3A
-	   20 00
- 00000059 55 73 65 72 6E		unameOrPwLenInvalid	BYTE "Username/password may not be empty",0
-	   61 6D 65 2F 70
-	   61 73 73 77 6F
-	   72 64 20 6D 61
-	   79 20 6E 6F 74
-	   20 62 65 20 65
-	   6D 70 74 79 00
+ = 0000001E				ERROR_MSG_LEN = 30
 
-					; main menu prompts
- 0000007C 4D 65 6E 75 0A		mainMenuOptions BYTE "Menu", 0Ah,0Dh
-	   0D
- 00000082  31 3A 20 53 65						BYTE "1: See to-dos",0Ah, 0Dh
-	   65 20 74 6F 2D
-	   64 6F 73 0A 0D
- 00000091  32 3A 20 53 65						BYTE "2: See completed to-dos", 0Ah, 0Dh
-	   65 20 63 6F 6D
-	   70 6C 65 74 65
-	   64 20 74 6F 2D
-	   64 6F 73 0A 0D
- 000000AA  33 3A 20 41 64						BYTE "3: Add to-do", 0Ah, 0Dh
-	   64 20 74 6F 2D
-	   64 6F 0A 0D
- 000000B8  34 3A 20 4D 61						BYTE "4: Mark to-do as done", 0Ah, 0Dh
-	   72 6B 20 74 6F
-	   2D 64 6F 20 61
-	   73 20 64 6F 6E
-	   65 0A 0D
- 000000CF  35 3A 20 4C 6F						BYTE "5: Logout",0Ah,0Dh
-	   67 6F 75 74 0A
-	   0D
- 000000DA  45 6E 74 65 72						BYTE "Enter choice: ",0
-	   20 63 68 6F 69
-	   63 65 3A 20 00
-					
-					; todo adding prompts
-					
- 000000E9 41 64 64 20 54		addTodoPrompt	BYTE "Add To-do",0Ah, 0Dh
-	   6F 2D 64 6F 0A
-	   0D
- 000000F4  54 6F 2D 64 6F						BYTE "To-do may be up to 100 characters, enter empty line to exit",0Ah,0Dh
-	   20 6D 61 79 20
-	   62 65 20 75 70
-	   20 74 6F 20 31
-	   30 30 20 63 68
-	   61 72 61 63 74
-	   65 72 73 2C 20
-	   65 6E 74 65 72
-	   20 65 6D 70 74
-	   79 20 6C 69 6E
-	   65 20 74 6F 20
-	   65 78 69 74 0A
-	   0D
- 00000131  45 6E 74 65 72						BYTE "Enter To-do description: ",0Ah,0Dh,0
-	   20 54 6F 2D 64
-	   6F 20 64 65 73
-	   63 72 69 70 74
-	   69 6F 6E 3A 20
+ 00000000 4E 6F 20 45 72		errorTable	BYTE "No Errors                     ",0
+	   72 6F 72 73 20
+	   20 20 20 20 20
+	   20 20 20 20 20
+	   20 20 20 20 20
+	   20 20 20 20 20
+	   00
+ 0000001F  45 72 72 6F 72					BYTE "Error loading file            ",0
+	   20 6C 6F 61 64
+	   69 6E 67 20 66
+	   69 6C 65 20 20
+	   20 20 20 20 20
+	   20 20 20 20 20
+	   00
+ 0000003E  4E 6F 20 75 73					BYTE "No user loaded to the database",0
+	   65 72 20 6C 6F
+	   61 64 65 64 20
+	   74 6F 20 74 68
+	   65 20 64 61 74
+	   61 62 61 73 65
+	   00
+ 0000005D  54 6F 64 6F 20					BYTE "Todo ID not found             ",0
+	   49 44 20 6E 6F
+	   74 20 66 6F 75
+	   6E 64 20 20 20
+	   20 20 20 20 20
+	   20 20 20 20 20
+	   00
+ 0000007C 55 6E 6B 6F 77		unknownError BYTE "Unkown error code",0
+	   6E 20 65 72 72
+	   6F 72 20 63 6F
+	   64 65 00
+
+					; headings
+ 0000008E 54 6F 2D 64 6F		tdlHeading BYTE "To-do list",0Ah,0Dh,0
+	   20 6C 69 73 74
 	   0A 0D 00
 
- 0000014D 00000000			uPTr DWORD 0 ; is a non-zero value when logged in
+ 0000009B 00000000			uPtr DWORD 0
+ 0000009F 00000000			err DWORD 0
+
+ 000000A3 00000000			count DWORD 0
 
  00000000			.code
- 00000000			Run PROC
+
+ 00000000			LoadUser PROC, userPtr:DWORD
+ 00000003  50				push eax
 					
- 00000000  B8 00000000			mov eax, 0
- 00000005  83 F8 00			WHILE1: cmp eax, 0 ; if eax changes, that is seen as an exit signal
- 00000008  75 1C			jne ENDWHILE1
-						
- 0000000A  E8 00000000 E			call ClrScr
- 0000000F  83 3D 0000014D R			_IF1:cmp [uPtr], 0 ; if uptr is 0, user has not logged in yet
-	   00
- 00000016  75 07				jne _ELSEIF1
-							INVOKE StartupMenu
- 0000001D  EB 05				jmp _ENDIF1
- 0000001F					_ELSEIF1:
-							INVOKE MainMenu
- 00000024					_ENDIF1:
+ 00000004  8B 45 08			mov eax, userPtr
+ 00000007  A3 0000009B R		mov uPtr, eax
 
- 00000024  EB DF			jmp WHILE1
- 00000026				ENDWHILE1:
-
- 00000026  C3				ret
- 00000027			Run ENDP
-
- 00000027			LoginScreen PROC
-					LOCAL username[MAX_NAME_LEN + 1]:BYTE, password[MAX_PW_LEN + 1]:BYTE
- 0000002D  60				pushad
- 0000002E  B8 00000000			mov eax, 0
-
- 00000033  B9 0000001F			mov ecx, MAX_NAME_LEN + 1
- 00000038  8D 7D E1			lea edi, username
- 0000003B  F3/ AA			REP STOSB
-
- 0000003D  B9 0000001F			mov ecx, MAX_PW_LEN + 1
- 00000042  8D 7D C2			lea edi, password
- 00000045  F3/ AA			REP STOSB
-
- 00000047  BA 0000002F R		mov edx, offset welcomeMsg
- 0000004C  E8 00000000 E		call WriteString
- 00000051  E8 00000000 E		call crlf
-
- 00000056  BA 00000037 R		mov edx, offset usernamePrompt
- 0000005B  E8 00000000 E		call WriteString
- 00000060  8D 55 E1			lea edx, username
- 00000063  B9 0000001E			mov ecx, MAX_NAME_LEN
- 00000068  E8 00000000 E		call ReadString
-
- 0000006D  BA 00000048 R		mov edx, offset passwordPrompt
- 00000072  E8 00000000 E		call WriteString
- 00000077  8D 55 C2			lea edx, password
- 0000007A  B9 0000001E			mov ecx, MAX_PW_LEN
- 0000007F  E8 00000000 E		call ReadString
-
-					INVOKE Login, ADDR username, ADDR password
- 00000091  83 F8 FF			_IF1: cmp eax, -1 ; if -1, there was an error
- 00000094  75 0C			jne END_IF1
- 00000096  E8 00000000 E			call User_DisplayErrorMsg
- 0000009B  E8 00000000 E			call crlf
- 000000A0  EB 10				jmp RETURN
- 000000A2				END_IF1:
+					INVOKE CountToDos
 					
- 000000A2  A3 0000014D R		mov uPtr, eax
-					INVOKE LoadUser, uPtr
-
- 000000B2			RETURN:
- 000000B2  E8 00000000 E		call WaitMsg
- 000000B7  61				popad
+ 00000011  58				pop eax
 					ret
- 000000BA			LoginScreen ENDP
+ 00000016			LoadUser ENDP
 
- 000000BA			SignupScreen PROC
-					LOCAL username[MAX_NAME_LEN + 1]:BYTE, password[MAX_PW_LEN + 1]:BYTE
- 000000C0  60				pushad
- 000000C1  B8 00000000			mov eax, 0
-
- 000000C6  B9 0000001F			mov ecx, MAX_NAME_LEN + 1
- 000000CB  8D 7D E1			lea edi, username
- 000000CE  F3/ AA			REP STOSB
-
- 000000D0  B9 0000001F			mov ecx, MAX_PW_LEN + 1
- 000000D5  8D 7D C2			lea edi, password
- 000000D8  F3/ AA			REP STOSB
-
- 000000DA  BA 00000037 R		mov edx, offset usernamePrompt
- 000000DF  E8 00000000 E		call WriteString
- 000000E4  8D 55 E1			lea edx, username
- 000000E7  B9 0000001E			mov ecx, MAX_NAME_LEN
- 000000EC  E8 00000000 E		call ReadString
- 000000F1  83 F8 00			_IF1:cmp eax, 0
- 000000F4  75 11			jne _ENDIF1
- 000000F6  BA 00000059 R			mov edx, offset unameOrPwLenInvalid
- 000000FB  E8 00000000 E			call  WriteString
- 00000100  E8 00000000 E			call crlf
- 00000105  EB 50				jmp RETURN
- 00000107				_ENDIF1:
-
- 00000107  BA 00000048 R		mov edx, offset passwordPrompt
- 0000010C  E8 00000000 E		call WriteString
- 00000111  8D 55 C2			lea edx, password
- 00000114  B9 0000001E			mov ecx, MAX_PW_LEN
- 00000119  E8 00000000 E		call ReadString
- 0000011E  83 F8 00			_IF2:cmp eax, 0
- 00000121  75 11			jne _ENDIF2
- 00000123  BA 00000059 R			mov edx, offset unameOrPwLenInvalid
- 00000128  E8 00000000 E			call  WriteString
- 0000012D  E8 00000000 E			call crlf
- 00000132  EB 23				jmp RETURN
- 00000134				_ENDIF2:
-
-					INVOKE Signup, ADDR username, ADDR password
- 00000141  83 F8 00			_IF3: cmp eax, 0 ; if 0, there were no errors
- 00000144  74 0C			je END_IF3
- 00000146  E8 00000000 E			call User_DisplayErrorMsg
- 0000014B  E8 00000000 E			call crlf
- 00000150  EB 05				jmp RETURN
- 00000152				END_IF3:
- 00000152  A3 0000014D R		mov uPtr, eax
-
- 00000157			RETURN:
- 00000157  E8 00000000 E		call WaitMsg
- 0000015C  61				popad
-					ret
- 0000015F			SignupScreen ENDP
-
- 0000015F			StartupMenu PROC
- 0000015F  50				push eax
- 00000160  52				push edx
-					
- 00000161				WHILE1:
- 00000161  BA 00000000 R			mov edx, offset startupMenuOptions
- 00000166  E8 00000000 E			call WriteString
- 0000016B  E8 00000000 E			call Readint
- 00000170  83 F8 01				_IF1: cmp eax, 1
- 00000173  75 0E				jne _ELSEIF1
- 00000175  E8 00000000 E				call ClrScr
-							INVOKE LoginScreen
- 0000017F  EB 33					jmp END_WHILE1 ; break
- 00000181  EB 11				jmp _ENDIF1
- 00000183  83 F8 02				_ELSEIF1: cmp eax, 2
- 00000186  75 0C				jne _ENDIF1
- 00000188  E8 00000000 E				call ClrScr
-							INVOKE SignupScreen
- 00000192  EB 20					jmp END_WHILE1 ; break
- 00000194					_ENDIF1:
-						
- 00000194  E8 00000000 E			call writechar
- 00000199  E8 00000000 E			call crlf
- 0000019E  BA 0000001E R			mov edx, offset incorrectChoice
- 000001A3  E8 00000000 E			call WriteString
- 000001A8  E8 00000000 E			call WaitMsg
- 000001AD  E8 00000000 E			call ClrScr
- 000001B2  EB AD			jmp WHILE1
- 000001B4				END_WHILE1:
-
- 000001B4			RETURN:
- 000001B4  5A				pop edx
- 000001B5  58				pop eax
- 000001B6  C3				ret
- 000001B7			StartupMenu ENDP
-
- 000001B7			MainMenu PROC
- 000001B7  50				push eax
- 000001B8  52				push edx
-					
- 000001B9  83 3D 0000014D R		WHILE1: cmp [uPtr], 0
-	   00
- 000001C0  0F 84 00000091		je END_WHILE1
- 000001C6  E8 00000000 E			call ClrScr
- 000001CB  BA 0000007C R			mov edx, offset mainMenuOptions
- 000001D0  E8 00000000 E			call WriteString
- 000001D5  E8 00000000 E			call Readint
-
- 000001DA					SWITCH:
- 000001DA  83 F8 01				CASE1: cmp eax, 1
- 000001DD  75 16				jne CASE2
- 000001DF  E8 00000000 E				call Clrscr
-							INVOKE DisplayUnfinished
- 000001E9  83 F8 00					_IF1:cmp eax, 0
- 000001EC  74 05					je _ENDIF1
-								INVOKE ToDo_DisplayErrorMsg
- 000001F3						_ENDIF1:
- 000001F3  EB 58					jmp ENDSWITCH ; break
- 000001F5  83 F8 02				CASE2: cmp eax, 2
- 000001F8  75 16				jne CASE3
- 000001FA  E8 00000000 E				call Clrscr
-							INVOKE DisplayCompleted
- 00000204  83 F8 00					_IF2:cmp eax, 0
- 00000207  74 EA					je _ENDIF1
-								INVOKE ToDo_DisplayErrorMsg
- 0000020E						_ENDIF2:
- 0000020E  EB 3D					jmp ENDSWITCH ; break
- 00000210  83 F8 03				CASE3: cmp eax, 3
- 00000213  75 0C				jne CASE4
- 00000215  E8 00000000 E				call Clrscr
-							INVOKE ToDoAddScreen
- 0000021F  EB 2C					jmp ENDSWITCH ; break
- 00000221  83 F8 04				CASE4: cmp eax, 4
- 00000224  75 07				jne CASE5
- 00000226  E8 00000000 E				call Clrscr
-							; INVOKE MarkAsDone
- 0000022B  EB 20					jmp ENDSWITCH ; break
- 0000022D  83 F8 05				CASE5: cmp eax, 5
- 00000230  75 11				jne DEFAULT
-							INVOKE UnloadUser
- 00000237  C7 05 0000014D R				mov uPtr, 0 ; log user out
+ 00000016			UnloadUser PROC
+ 00000016  C7 05 0000009B R		mov uPtr, 0
 	   00000000
- 00000241  EB 0A					jmp ENDSWITCH ; exit
- 00000243					DEFAULT:
- 00000243  BA 0000001E R				mov edx, offset incorrectChoice
- 00000248  E8 00000000 E				call WriteString
- 0000024D					ENDSWITCH:
+ 00000020  C7 05 000000A3 R		mov count, 0
+	   00000000
+ 0000002A  C3				ret
+ 0000002B			UnloadUser ENDP
 
- 0000024D  E8 00000000 E			call WaitMsg
+ 0000002B			DisplayUnfinished PROC
+					LOCAL filehandle:HANDLE, username:PTR BYTE
 
- 00000252  E9 FFFFFF62			jmp WHILE1
- 00000257				END_WHILE1:
+					LOCAL td:TODO
+ 00000031  60				pushad
+ 00000032  C7 05 0000009F R		mov err, 0
+	   00000000
+					
+					INVOKE GetName, uPtr
+ 00000047  89 45 F8			mov username, eax
 
- 00000257			RETURN:
- 00000257  5A				pop edx
- 00000258  58				pop eax
- 00000259  C3				ret
- 0000025A			MainMenu ENDP
+ 0000004A  BA 0000008E R		mov edx, offset tdlHeading
+ 0000004F  E8 00000000 E		call WriteString
 
- 0000025A			ToDoAddScreen PROC
-					LOCAL desc[MAX_DESC_LEN + 1]:BYTE
- 00000260  60				pushad
+ 00000054  8B 55 F8			mov edx, username
+ 00000057  E8 00000000 E		call OpenInputFile
+ 0000005C  83 F8 FF			_IF1: cmp eax, INVALID_HANDLE_VALUE
+ 0000005F  75 0C			jne _ENDIF1
+ 00000061  C7 05 0000009F R			mov err, FILE_ERROR
+	   00000001
+ 0000006B  EB 47				jmp RETURN
+ 0000006D				_ENDIF1:
+ 0000006D  89 45 FC			mov filehandle, eax
 
- 00000261  B8 00000000			mov eax, 0
- 00000266  B9 00000065			mov ecx, MAX_DESC_LEN + 1
- 0000026B  8D 7D 9B			lea edi, desc
- 0000026E  F3/ AA			REP STOSB
+ 00000070				WHILE1:
+ 00000070  8D 55 8F				lea edx, td
+ 00000073  B9 00000069				mov ecx, TODO_SIZE
+ 00000078  8B 45 FC				mov eax, filehandle
+ 0000007B  E8 00000000 E			call ReadFromFile
+ 00000080  83 F8 00				cmp eax, 0 ; if eax is 0, eof was reached
+ 00000083  74 27				je ENDWHILE1
 
- 00000270  BA 000000E9 R		mov edx, offset addToDoPrompt
- 00000275  E8 00000000 E		call WriteString
- 0000027A  8D 55 9B			lea edx, desc
- 0000027D  B9 00000064			mov ecx, MAX_DESC_LEN
- 00000282  E8 00000000 E		call ReadString
- 00000287  83 F8 00			cmp eax, 0
- 0000028A  74 15			je RETURN
+ 00000085  80 7D F7 00				_IF2:cmp [td.completed],0
+ 00000089  75 1F				jne _ENDIF2
+ 0000008B  8B 45 8F					mov eax, td.ID
+ 0000008E  E8 00000000 E				call WriteDec
+ 00000093  B8 00000020					mov eax, ' '
+ 00000098  E8 00000000 E				call WriteChar
+ 0000009D  8D 55 93					lea edx, td.description
+ 000000A0  E8 00000000 E				call WriteString
+ 000000A5  E8 00000000 E				call crlf
+ 000000AA					_ENDIF2:
 
-					INVOKE AddNew, ADDR desc
- 00000295  83 F8 00			_IF1: cmp eax, 0
- 00000298  75 07			jne _ENDIF1
-						INVOKE ToDo_DisplayErrorMsg
- 0000029F  EB 00				jmp RETURN
- 000002A1				_ENDIF1:
+ 000000AA  EB C4			jmp WHILE1
+ 000000AC				ENDWHILE1:
 
- 000002A1			RETURN:
- 000002A1  61				popad
+					INVOKE CloseHandle, filehandle
+
+ 000000B4			RETURN:
+ 000000B4  61				popad
+ 000000B5  A1 0000009F R		mov eax, err
 					ret
- 000002A4			ToDoAddScreen ENDP
+ 000000BC			DisplayUnfinished ENDP
+
+ 000000BC			DisplayCompleted PROC
+					LOCAL filehandle:HANDLE, username:PTR BYTE
+
+					LOCAL td:TODO
+ 000000C2  60				pushad
+ 000000C3  C7 05 0000009F R		mov err, 0
+	   00000000
+					
+					INVOKE GetName, uPtr
+ 000000D8  89 45 F8			mov username, eax
+
+ 000000DB  BA 0000008E R		mov edx, offset tdlHeading
+ 000000E0  E8 00000000 E		call WriteString
+
+ 000000E5  8B 55 F8			mov edx, username
+ 000000E8  E8 00000000 E		call OpenInputFile
+ 000000ED  83 F8 FF			_IF1: cmp eax, INVALID_HANDLE_VALUE
+ 000000F0  75 0C			jne _ENDIF1
+ 000000F2  C7 05 0000009F R			mov err, FILE_ERROR
+	   00000001
+ 000000FC  EB 47				jmp RETURN
+ 000000FE				_ENDIF1:
+ 000000FE  89 45 FC			mov filehandle, eax
+
+ 00000101				WHILE1:
+ 00000101  8D 55 8F				lea edx, td
+ 00000104  B9 00000069				mov ecx, TODO_SIZE
+ 00000109  8B 45 FC				mov eax, filehandle
+ 0000010C  E8 00000000 E			call ReadFromFile
+ 00000111  83 F8 00				cmp eax, 0 ; if eax is 0, eof was reached
+ 00000114  74 27				je ENDWHILE1
+
+ 00000116  80 7D F7 01				_IF2:cmp [td.completed],1
+ 0000011A  75 1F				jne _ENDIF2
+ 0000011C  8B 45 8F					mov eax, td.ID
+ 0000011F  E8 00000000 E				call WriteDec
+ 00000124  B8 00000020					mov eax, ' '
+ 00000129  E8 00000000 E				call WriteChar
+ 0000012E  8D 55 93					lea edx, td.description
+ 00000131  E8 00000000 E				call WriteString
+ 00000136  E8 00000000 E				call crlf
+ 0000013B					_ENDIF2:
+
+ 0000013B  EB C4			jmp WHILE1
+ 0000013D				ENDWHILE1:
+
+					INVOKE CloseHandle, filehandle
+
+ 00000145			RETURN:
+ 00000145  61				popad
+ 00000146  A1 0000009F R		mov eax, err
+					ret
+ 0000014D			DisplayCompleted ENDP
+
+ 0000014D			AddNew PROC, desc:PTR BYTE
+					LOCAL username:PTR BYTE, td:TODO
+ 00000153  60				pushad
+
+ 00000154  C7 05 0000009F R		mov err, 0
+	   00000000
+
+ 0000015E  83 3D 0000009B R		_IF1:cmp uPTr, 0
+	   00
+ 00000165  75 0C			jne _ENDIF1
+ 00000167  C7 05 0000009F R			mov err, USER_NOT_LOADED
+	   00000002
+ 00000171  EB 4C				jmp RETURN
+ 00000173				_ENDIF1:
+
+					INVOKE GetName, uPtr
+ 0000017E  89 45 FC			mov username, eax
+
+ 00000181  8B 75 08			mov esi, desc
+ 00000184  8D 7D 97			lea edi, td.description
+ 00000187  B9 00000064			mov ecx, MAX_DESC_LEN
+ 0000018C  F3/ A4			REP MOVSB
+
+ 0000018E  C6 45 FB 00			mov td.completed, 0
+ 00000192  A1 000000A3 R		mov eax, count
+ 00000197  89 45 93			mov td.ID, eax
+ 0000019A  FF 05 000000A3 R		inc count
+
+					INVOKE AppendFile, username, ADDR td, TODO_SIZE
+ 000001AE  83 F8 00			_IF2: cmp eax, 0
+ 000001B1  75 0C			jne _ENDIF2
+ 000001B3  C7 05 0000009F R			mov err, FILE_ERROR
+	   00000001
+ 000001BD  EB 00				jmp RETURN
+ 000001BF				_ENDIF2:
+
+ 000001BF			RETURN:
+ 000001BF  61				popad
+ 000001C0  A1 0000009F R		mov eax, err
+					ret
+ 000001C9			AddNew ENDP
+
+ 000001C9			MarkAsDone PROC, ID:DWORD
+					LOCAL filehandle:HANDLE, filename:PTR BYTE, td:TODO, numWritten:DWORD, found:BYTE
+ 000001CF  60				pushad
+
+ 000001D0  C7 05 0000009F R		mov err, 0
+	   00000000
+ 000001DA  C6 45 87 00			mov found, 0
+
+ 000001DE  83 3D 0000009B R		_IF1:cmp uPTr, 0
+	   00
+ 000001E5  75 0F			jne _ENDIF1
+ 000001E7  C7 05 0000009F R			mov err, USER_NOT_LOADED
+	   00000002
+ 000001F1  E9 000000A4				jmp RETURN
+ 000001F6				_ENDIF1:
+
+					INVOKE GetName, uPTr
+ 00000201  89 45 F8			mov filename, eax
+
+ 00000204  BB 80000000			mov ebx, GENERIC_READ
+ 00000209  81 CB 40000000		OR ebx, GENERIC_WRITE
+
+					INVOKE CreateFile, filename, ebx, 
+						DO_NOT_SHARE, 0, OPEN_EXISTING, 
+						FILE_ATTRIBUTE_NORMAL, 0
+					
+ 00000225  83 F8 FF			_IF2:cmp eax, INVALID_HANDLE_VALUE
+ 00000228  75 0C			jne _ENDIF2
+ 0000022A  C7 05 0000009F R			mov err, FILE_ERROR
+	   00000001
+ 00000234  EB 64				jmp RETURN
+ 00000236				_ENDIF2:
+ 00000236  89 45 FC			mov filehandle, eax
+
+ 00000239				WHILE1: ; while true
+						
+ 00000239  8B 45 FC				mov eax, filehandle
+ 0000023C  B9 00000069				mov ecx, TODO_SIZE
+ 00000241  8D 55 8F				lea edx, td
+ 00000244  E8 00000000 E			call ReadFromFile
+ 00000249  83 F8 00				cmp eax, 0
+ 0000024C  74 34				je ENDWHILE1
+
+ 0000024E  8B 45 08				mov eax, ID
+ 00000251  3B 45 8F				_IF3:cmp eax, [td.ID]
+ 00000254  75 2A				jne _ENDIF3
+							
+ 00000256  C6 45 F7 01					mov td.completed, 1
+							; move back
+							INVOKE SetFilePointer, filehandle, -TODO_SIZE, 0, FILE_CURRENT
+							INVOKE WriteFile, filehandle, ADDR td, TODO_SIZE, ADDR numWritten, 0
+ 0000027C  C6 45 87 01					mov found, 1
+
+ 00000280					_ENDIF3:
+
+ 00000280  EB B7			jmp WHILE1
+ 00000282				ENDWHILE1:
+
+ 00000282  80 7D 87 00			_IF4:cmp [found], 0
+ 00000286  75 0A			jne _ENDIF4
+ 00000288  C7 05 0000009F R			mov err, INVALID_TODO_ID
+	   00000003
+ 00000292				_ENDIF4:
+
+					INVOKE CloseHandle, filehandle
+
+ 0000029A			RETURN:
+ 0000029A  61				popad
+ 0000029B  A1 0000009F R		mov eax, err
+					ret
+ 000002A4			MarkAsDone ENDP
+
+ 000002A4			ToDo_DisplayErrorMsg PROC
+ 000002A4  60				pushad
+					
+ 000002A5  A1 0000009F R		mov eax, err
+ 000002AA  83 F8 00			cmp eax, 0
+ 000002AD  7C 34			jl RETURN
+ 000002AF  83 F8 04			_IF1:cmp eax, ERROR_RANGE
+ 000002B2  7C 16			jl _ENDIF1
+ 000002B4  BA 0000007C R			mov edx, offset unknownError
+ 000002B9  E8 00000000 E			call WriteString
+ 000002BE  A1 0000009F R			mov eax, err
+ 000002C3  E8 00000000 E			call WriteDec
+ 000002C8  EB 19				jmp RETURN
+ 000002CA				_ENDIF1:
+
+ 000002CA  A1 0000009F R		mov eax, err
+ 000002CF  BB 0000001F			mov ebx, ERROR_MSG_LEN + 1
+ 000002D4  F7 E3			mul ebx
+ 000002D6  BE 00000000 R		mov esi, offset errortable
+ 000002DB  8D 14 06			lea edx, [esi + eax]
+
+ 000002DE  E8 00000000 E		call WriteString
+
+ 000002E3			RETURN:
+ 000002E3  61				popad
+ 000002E4  C3				ret
+ 000002E5			ToDo_DisplayErrorMsg ENDP
+
+ 000002E5			CountToDos PROC
+					LOCAL filehandle:HANDLE, username:PTR BYTE
+
+					LOCAL td:TODO
+ 000002EB  60				pushad
+ 000002EC  C7 05 0000009F R		mov err, 0
+	   00000000
+					
+					INVOKE GetName, uPtr
+ 00000301  89 45 F8			mov username, eax
+
+ 00000304  8B 55 F8			mov edx, username
+ 00000307  E8 00000000 E		call OpenInputFile
+ 0000030C  83 F8 FF			_IF1: cmp eax, INVALID_HANDLE_VALUE
+ 0000030F  75 02			jne _ENDIF1
+ 00000311  EB 28				jmp RETURN
+ 00000313				_ENDIF1:
+ 00000313  89 45 FC			mov filehandle, eax
+
+ 00000316				WHILE1:
+ 00000316  8D 55 8F				lea edx, td
+ 00000319  B9 00000069				mov ecx, TODO_SIZE
+ 0000031E  8B 45 FC				mov eax, filehandle
+ 00000321  E8 00000000 E			call ReadFromFile
+ 00000326  83 F8 00				cmp eax, 0 ; if eax is 0, eof was reached
+ 00000329  74 08				je ENDWHILE1
+
+ 0000032B  FF 05 000000A3 R			inc count
+
+ 00000331  EB E3			jmp WHILE1
+ 00000333				ENDWHILE1:
+
+					INVOKE CloseHandle, filehandle
+
+ 0000033B			RETURN:
+ 0000033B  61				popad
+ 0000033C  A1 0000009F R		mov eax, err
+					ret
+ 00000343			CountToDos ENDP
 
 				END
-Microsoft (R) Macro Assembler Version 14.29.30137.0	    12/19/21 21:55:56
-App.asm							     Symbols 2 - 1
+Microsoft (R) Macro Assembler Version 14.29.30137.0	    12/20/21 00:16:50
+ToDo.asm						     Symbols 2 - 1
 
 
 
@@ -489,6 +523,10 @@ SYSTEMTIME . . . . . . . . . . .	 00000010
   wMinute  . . . . . . . . . . .	 0000000A	 Word
   wSecond  . . . . . . . . . . .	 0000000C	 Word
   wMilliseconds  . . . . . . . .	 0000000E	 Word
+TODO . . . . . . . . . . . . . .	 00000069
+  ID . . . . . . . . . . . . . .	 00000000	 DWord
+  description  . . . . . . . . .	 00000004	 Byte
+  completed  . . . . . . . . . .	 00000068	 Byte
 WINDOW_BUFFER_SIZE_RECORD  . . .	 00000004
   dwSize . . . . . . . . . . . .	 00000000	 DWord
 
@@ -499,24 +537,62 @@ Segments and Groups:
 
 FLAT . . . . . . . . . . . . . .	GROUP
 STACK  . . . . . . . . . . . . .	32 Bit	 00001000 Para	  Stack	  'STACK'	 
-_DATA  . . . . . . . . . . . . .	32 Bit	 00000151 Para	  Public  'DATA'	
-_TEXT  . . . . . . . . . . . . .	32 Bit	 000002A4 Para	  Public  'CODE'	
+_DATA  . . . . . . . . . . . . .	32 Bit	 000000A7 Para	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 00000343 Para	  Public  'CODE'	
 
 
 Procedures, parameters, and locals:
 
                 N a m e                 Type     Value    Attr
 
-AddNew . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
+AddNew . . . . . . . . . . . . .	P Near	 0000014D _TEXT	Length= 0000007C Public STDCALL
+  desc . . . . . . . . . . . . .	DWord	 bp + 00000008
+  username . . . . . . . . . . .	DWord	 bp - 00000004
+  td . . . . . . . . . . . . . .	 00000069    bp - 0000006D
+  _IF1 . . . . . . . . . . . . .	L Near	 0000015E _TEXT	
+  _ENDIF1  . . . . . . . . . . .	L Near	 00000173 _TEXT	
+  _IF2 . . . . . . . . . . . . .	L Near	 000001AE _TEXT	
+  _ENDIF2  . . . . . . . . . . .	L Near	 000001BF _TEXT	
+  RETURN . . . . . . . . . . . .	L Near	 000001BF _TEXT	
+AppendFile . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 CloseFile  . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 CloseHandle  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 Clrscr . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
+CountToDos . . . . . . . . . . .	P Near	 000002E5 _TEXT	Length= 0000005E Public STDCALL
+  filehandle . . . . . . . . . .	DWord	 bp - 00000004
+  username . . . . . . . . . . .	DWord	 bp - 00000008
+  td . . . . . . . . . . . . . .	 00000069    bp - 00000071
+  _IF1 . . . . . . . . . . . . .	L Near	 0000030C _TEXT	
+  _ENDIF1  . . . . . . . . . . .	L Near	 00000313 _TEXT	
+  WHILE1 . . . . . . . . . . . .	L Near	 00000316 _TEXT	
+  ENDWHILE1  . . . . . . . . . .	L Near	 00000333 _TEXT	
+  RETURN . . . . . . . . . . . .	L Near	 0000033B _TEXT	
 CreateFileA  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 CreateOutputFile . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 Crlf . . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 Delay  . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-DisplayCompleted . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-DisplayUnfinished  . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
+DisplayCompleted . . . . . . . .	P Near	 000000BC _TEXT	Length= 00000091 Public STDCALL
+  filehandle . . . . . . . . . .	DWord	 bp - 00000004
+  username . . . . . . . . . . .	DWord	 bp - 00000008
+  td . . . . . . . . . . . . . .	 00000069    bp - 00000071
+  _IF1 . . . . . . . . . . . . .	L Near	 000000ED _TEXT	
+  _ENDIF1  . . . . . . . . . . .	L Near	 000000FE _TEXT	
+  WHILE1 . . . . . . . . . . . .	L Near	 00000101 _TEXT	
+  _IF2 . . . . . . . . . . . . .	L Near	 00000116 _TEXT	
+  _ENDIF2  . . . . . . . . . . .	L Near	 0000013B _TEXT	
+  ENDWHILE1  . . . . . . . . . .	L Near	 0000013D _TEXT	
+  RETURN . . . . . . . . . . . .	L Near	 00000145 _TEXT	
+DisplayUnfinished  . . . . . . .	P Near	 0000002B _TEXT	Length= 00000091 Public STDCALL
+  filehandle . . . . . . . . . .	DWord	 bp - 00000004
+  username . . . . . . . . . . .	DWord	 bp - 00000008
+  td . . . . . . . . . . . . . .	 00000069    bp - 00000071
+  _IF1 . . . . . . . . . . . . .	L Near	 0000005C _TEXT	
+  _ENDIF1  . . . . . . . . . . .	L Near	 0000006D _TEXT	
+  WHILE1 . . . . . . . . . . . .	L Near	 00000070 _TEXT	
+  _IF2 . . . . . . . . . . . . .	L Near	 00000085 _TEXT	
+  _ENDIF2  . . . . . . . . . . .	L Near	 000000AA _TEXT	
+  ENDWHILE1  . . . . . . . . . .	L Near	 000000AC _TEXT	
+  RETURN . . . . . . . . . . . .	L Near	 000000B4 _TEXT	
 DumpMem  . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 DumpRegs . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 ExitProcess  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
@@ -552,32 +628,28 @@ HeapDestroy  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 HeapFree . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 HeapSize . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 IsDigit  . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-LoadUser . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
+LoadUser . . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 00000016 Public STDCALL
+  userPtr  . . . . . . . . . . .	DWord	 bp + 00000008
 LocalFree  . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-LoginScreen  . . . . . . . . . .	P Near	 00000027 _TEXT	Length= 00000093 Public STDCALL
-  username . . . . . . . . . . .	Byte	 bp - 0000001F
-  password . . . . . . . . . . .	Byte	 bp - 0000003E
-  _IF1 . . . . . . . . . . . . .	L Near	 00000091 _TEXT	
-  END_IF1  . . . . . . . . . . .	L Near	 000000A2 _TEXT	
-  RETURN . . . . . . . . . . . .	L Near	 000000B2 _TEXT	
 Login  . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-MainMenu . . . . . . . . . . . .	P Near	 000001B7 _TEXT	Length= 000000A3 Public STDCALL
-  WHILE1 . . . . . . . . . . . .	L Near	 000001B9 _TEXT	
-  SWITCH . . . . . . . . . . . .	L Near	 000001DA _TEXT	
-  CASE1  . . . . . . . . . . . .	L Near	 000001DA _TEXT	
-  _IF1 . . . . . . . . . . . . .	L Near	 000001E9 _TEXT	
-  _ENDIF1  . . . . . . . . . . .	L Near	 000001F3 _TEXT	
-  CASE2  . . . . . . . . . . . .	L Near	 000001F5 _TEXT	
-  _IF2 . . . . . . . . . . . . .	L Near	 00000204 _TEXT	
-  _ENDIF2  . . . . . . . . . . .	L Near	 0000020E _TEXT	
-  CASE3  . . . . . . . . . . . .	L Near	 00000210 _TEXT	
-  CASE4  . . . . . . . . . . . .	L Near	 00000221 _TEXT	
-  CASE5  . . . . . . . . . . . .	L Near	 0000022D _TEXT	
-  DEFAULT  . . . . . . . . . . .	L Near	 00000243 _TEXT	
-  ENDSWITCH  . . . . . . . . . .	L Near	 0000024D _TEXT	
-  END_WHILE1 . . . . . . . . . .	L Near	 00000257 _TEXT	
-  RETURN . . . . . . . . . . . .	L Near	 00000257 _TEXT	
-MarkAsDone . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
+MarkAsDone . . . . . . . . . . .	P Near	 000001C9 _TEXT	Length= 000000DB Public STDCALL
+  ID . . . . . . . . . . . . . .	DWord	 bp + 00000008
+  filehandle . . . . . . . . . .	DWord	 bp - 00000004
+  filename . . . . . . . . . . .	DWord	 bp - 00000008
+  td . . . . . . . . . . . . . .	 00000069    bp - 00000071
+  numWritten . . . . . . . . . .	DWord	 bp - 00000078
+  found  . . . . . . . . . . . .	Byte	 bp - 00000079
+  _IF1 . . . . . . . . . . . . .	L Near	 000001DE _TEXT	
+  _ENDIF1  . . . . . . . . . . .	L Near	 000001F6 _TEXT	
+  _IF2 . . . . . . . . . . . . .	L Near	 00000225 _TEXT	
+  _ENDIF2  . . . . . . . . . . .	L Near	 00000236 _TEXT	
+  WHILE1 . . . . . . . . . . . .	L Near	 00000239 _TEXT	
+  _IF3 . . . . . . . . . . . . .	L Near	 00000251 _TEXT	
+  _ENDIF3  . . . . . . . . . . .	L Near	 00000280 _TEXT	
+  ENDWHILE1  . . . . . . . . . .	L Near	 00000282 _TEXT	
+  _IF4 . . . . . . . . . . . . .	L Near	 00000282 _TEXT	
+  _ENDIF4  . . . . . . . . . . .	L Near	 00000292 _TEXT	
+  RETURN . . . . . . . . . . . .	L Near	 0000029A _TEXT	
 MessageBoxA  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 MsgBoxAsk  . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 MsgBox . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
@@ -600,12 +672,7 @@ ReadInt  . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 ReadKeyFlush . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 ReadKey  . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 ReadString . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-Run  . . . . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 00000027 Public STDCALL
-  WHILE1 . . . . . . . . . . . .	L Near	 00000005 _TEXT	
-  _IF1 . . . . . . . . . . . . .	L Near	 0000000F _TEXT	
-  _ELSEIF1 . . . . . . . . . . .	L Near	 0000001F _TEXT	
-  _ENDIF1  . . . . . . . . . . .	L Near	 00000024 _TEXT	
-  ENDWHILE1  . . . . . . . . . .	L Near	 00000026 _TEXT	
+SearchFile . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 SetConsoleCursorInfo . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 SetConsoleCursorPosition . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 SetConsoleMode . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
@@ -617,25 +684,8 @@ SetFilePointer . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 SetLocalTime . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 SetTextColor . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 ShowFPUStack . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-SignupScreen . . . . . . . . . .	P Near	 000000BA _TEXT	Length= 000000A5 Public STDCALL
-  username . . . . . . . . . . .	Byte	 bp - 0000001F
-  password . . . . . . . . . . .	Byte	 bp - 0000003E
-  _IF1 . . . . . . . . . . . . .	L Near	 000000F1 _TEXT	
-  _ENDIF1  . . . . . . . . . . .	L Near	 00000107 _TEXT	
-  _IF2 . . . . . . . . . . . . .	L Near	 0000011E _TEXT	
-  _ENDIF2  . . . . . . . . . . .	L Near	 00000134 _TEXT	
-  _IF3 . . . . . . . . . . . . .	L Near	 00000141 _TEXT	
-  END_IF3  . . . . . . . . . . .	L Near	 00000152 _TEXT	
-  RETURN . . . . . . . . . . . .	L Near	 00000157 _TEXT	
 Signup . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 Sleep  . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-StartupMenu  . . . . . . . . . .	P Near	 0000015F _TEXT	Length= 00000058 Public STDCALL
-  WHILE1 . . . . . . . . . . . .	L Near	 00000161 _TEXT	
-  _IF1 . . . . . . . . . . . . .	L Near	 00000170 _TEXT	
-  _ELSEIF1 . . . . . . . . . . .	L Near	 00000183 _TEXT	
-  _ENDIF1  . . . . . . . . . . .	L Near	 00000194 _TEXT	
-  END_WHILE1 . . . . . . . . . .	L Near	 000001B4 _TEXT	
-  RETURN . . . . . . . . . . . .	L Near	 000001B4 _TEXT	
 StrLength  . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 Str_compare  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 Str_copy . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
@@ -643,13 +693,11 @@ Str_length . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 Str_trim . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 Str_ucase  . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 SystemTimeToFileTime . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-ToDoAddScreen  . . . . . . . . .	P Near	 0000025A _TEXT	Length= 0000004A Public STDCALL
-  desc . . . . . . . . . . . . .	Byte	 bp - 00000065
-  _IF1 . . . . . . . . . . . . .	L Near	 00000295 _TEXT	
-  _ENDIF1  . . . . . . . . . . .	L Near	 000002A1 _TEXT	
-  RETURN . . . . . . . . . . . .	L Near	 000002A1 _TEXT	
-ToDo_DisplayErrorMsg . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-UnloadUser . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
+ToDo_DisplayErrorMsg . . . . . .	P Near	 000002A4 _TEXT	Length= 00000041 Public STDCALL
+  _IF1 . . . . . . . . . . . . .	L Near	 000002AF _TEXT	
+  _ENDIF1  . . . . . . . . . . .	L Near	 000002CA _TEXT	
+  RETURN . . . . . . . . . . . .	L Near	 000002E3 _TEXT	
+UnloadUser . . . . . . . . . . .	P Near	 00000016 _TEXT	Length= 00000015 Public STDCALL
 User_DisplayErrorMsg . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WaitMsg  . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteBinB  . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
@@ -702,6 +750,8 @@ ENABLE_PROCESSED_OUTPUT  . . . .	Number	 00000001h
 ENABLE_WINDOW_INPUT  . . . . . .	Number	 00000008h   
 ENABLE_WRAP_AT_EOL_OUTPUT  . . .	Number	 00000002h   
 ENHANCED_KEY . . . . . . . . . .	Number	 00000100h   
+ERROR_MSG_LEN  . . . . . . . . .	Number	 0000001Eh   
+ERROR_RANGE  . . . . . . . . . .	Number	 00000004h   
 FALSE  . . . . . . . . . . . . .	Number	 00000000h   
 FILE_APPEND_DATA . . . . . . . .	Number	 00000004h   
 FILE_ATTRIBUTE_ARCHIVE . . . . .	Number	 00000020h   
@@ -722,6 +772,7 @@ FILE_BEGIN . . . . . . . . . . .	Number	 00000000h
 FILE_CURRENT . . . . . . . . . .	Number	 00000001h   
 FILE_DELETE_CHILD  . . . . . . .	Number	 00000040h   
 FILE_END . . . . . . . . . . . .	Number	 00000002h   
+FILE_ERROR . . . . . . . . . . .	Number	 00000001h   
 FILE_READ_DATA . . . . . . . . .	Number	 00000001h   
 FILE_SHARE_DELETE  . . . . . . .	Number	 00000004h   
 FILE_SHARE_READ  . . . . . . . .	Number	 00000001h   
@@ -755,6 +806,7 @@ IDTIMEOUT  . . . . . . . . . . .	Number	 00007D00h
 IDTRYAGAIN . . . . . . . . . . .	Number	 0000000Ah   
 IDYES  . . . . . . . . . . . . .	Number	 00000006h   
 INVALID_HANDLE_VALUE . . . . . .	Number	 -00000001h   
+INVALID_TODO_ID  . . . . . . . .	Number	 00000003h   
 KBDOWN_FLAG  . . . . . . . . . .	Number	 00000001h   
 KEY_EVENT  . . . . . . . . . . .	Number	 00000001h   
 KEY_MASKS  . . . . . . . . . . .	Number	 0000001Fh   
@@ -790,6 +842,7 @@ MB_YESNO . . . . . . . . . . . .	Number	 00000004h
 MENU_EVENT . . . . . . . . . . .	Number	 00000008h   
 MOUSE_EVENT  . . . . . . . . . .	Number	 00000002h   
 MessageBox . . . . . . . . . . .	Text   	 MessageBoxA
+NO_ERROR . . . . . . . . . . . .	Number	 00000000h   
 NULL . . . . . . . . . . . . . .	Number	 00000000h   
 NUMLOCK_ON . . . . . . . . . . .	Number	 00000020h   
 OPEN_ALWAYS  . . . . . . . . . .	Number	 00000004h   
@@ -810,6 +863,7 @@ TAB  . . . . . . . . . . . . . .	Number	 00000009h
 TODO_SIZE  . . . . . . . . . . .	Number	 00000069h   
 TRUE . . . . . . . . . . . . . .	Number	 00000001h   
 TRUNCATE_EXISTING  . . . . . . .	Number	 00000005h   
+USER_NOT_LOADED  . . . . . . . .	Number	 00000002h   
 VK_11  . . . . . . . . . . . . .	Number	 000000BDh   
 VK_12  . . . . . . . . . . . . .	Number	 000000BBh   
 VK_ADD . . . . . . . . . . . . .	Number	 0000006Bh   
@@ -891,15 +945,16 @@ VK_UP  . . . . . . . . . . . . .	Number	 00000026h
 WINDOW_BUFFER_SIZE_EVENT . . . .	Number	 00000004h   
 WriteConsoleOutputCharacter  . .	Text   	 WriteConsoleOutputCharacterA
 WriteConsole . . . . . . . . . .	Text   	 WriteConsoleA
-addTodoPrompt  . . . . . . . . .	Byte	 000000E9 _DATA	
 black  . . . . . . . . . . . . .	Number	 00000000h   
 blue . . . . . . . . . . . . . .	Number	 00000001h   
 brown  . . . . . . . . . . . . .	Number	 00000006h   
+count  . . . . . . . . . . . . .	DWord	 000000A3 _DATA	
 cyan . . . . . . . . . . . . . .	Number	 00000003h   
+errorTable . . . . . . . . . . .	Byte	 00000000 _DATA	
+err  . . . . . . . . . . . . . .	DWord	 0000009F _DATA	
 exit . . . . . . . . . . . . . .	Text   	 INVOKE ExitProcess,0
 gray . . . . . . . . . . . . . .	Number	 00000008h   
 green  . . . . . . . . . . . . .	Number	 00000002h   
-incorrectChoice  . . . . . . . .	Byte	 0000001E _DATA	
 lightBlue  . . . . . . . . . . .	Number	 00000009h   
 lightCyan  . . . . . . . . . . .	Number	 0000000Bh   
 lightGray  . . . . . . . . . . .	Number	 00000007h   
@@ -907,14 +962,10 @@ lightGreen . . . . . . . . . . .	Number	 0000000Ah
 lightMagenta . . . . . . . . . .	Number	 0000000Dh   
 lightRed . . . . . . . . . . . .	Number	 0000000Ch   
 magenta  . . . . . . . . . . . .	Number	 00000005h   
-mainMenuOptions  . . . . . . . .	Byte	 0000007C _DATA	
-passwordPrompt . . . . . . . . .	Byte	 00000048 _DATA	
 red  . . . . . . . . . . . . . .	Number	 00000004h   
-startupMenuOptions . . . . . . .	Byte	 00000000 _DATA	
-uPTr . . . . . . . . . . . . . .	DWord	 0000014D _DATA	
-unameOrPwLenInvalid  . . . . . .	Byte	 00000059 _DATA	
-usernamePrompt . . . . . . . . .	Byte	 00000037 _DATA	
-welcomeMsg . . . . . . . . . . .	Byte	 0000002F _DATA	
+tdlHeading . . . . . . . . . . .	Byte	 0000008E _DATA	
+uPtr . . . . . . . . . . . . . .	DWord	 0000009B _DATA	
+unknownError . . . . . . . . . .	Byte	 0000007C _DATA	
 white  . . . . . . . . . . . . .	Number	 0000000Fh   
 wsprintf . . . . . . . . . . . .	Text   	 wsprintfA
 yellow . . . . . . . . . . . . .	Number	 0000000Eh   

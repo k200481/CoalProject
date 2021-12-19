@@ -9,6 +9,6 @@ DisplayUnfinished PROTO
 DisplayCompleted PROTO
 
 AddNew PROTO, desc:PTR BYTE
-MarkAsDone PROTO, ID:PTR BYTE
+MarkAsDone PROTO, ID:DWORD
 
 ToDo_DisplayErrorMsg PROTO
