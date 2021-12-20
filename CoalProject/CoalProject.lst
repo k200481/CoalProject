@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler Version 14.29.30137.0	    12/20/21 00:16:50
+Microsoft (R) Macro Assembler Version 14.29.30137.0	    12/20/21 20:00:43
 ToDo.asm						     Page 1 - 1
 
 
@@ -40,7 +40,6 @@ ToDo.asm						     Page 1 - 1
 			      C 
 			      C 
  = 00000064		      C MAX_DESC_LEN = 100
- = 00000069		      C TODO_SIZE = MAX_DESC_LEN + 4 + 1
 			      C 
 			      C LoadUser PROTO, userPtr:DWORD
 			      C UnloadUser PROTO
@@ -69,6 +68,8 @@ ToDo.asm						     Page 1 - 1
 	   ]
  00000068  01				completed BYTE 1
 				TODO ENDS
+
+ = 00000069			TODO_SIZE = MAX_DESC_LEN + 4 + 1
 
 				; private func
 				CountToDos PROTO
@@ -439,7 +440,7 @@ ToDo.asm						     Page 1 - 1
  00000343			CountToDos ENDP
 
 				END
-Microsoft (R) Macro Assembler Version 14.29.30137.0	    12/20/21 00:16:50
+Microsoft (R) Macro Assembler Version 14.29.30137.0	    12/20/21 20:00:43
 ToDo.asm						     Symbols 2 - 1
 
 

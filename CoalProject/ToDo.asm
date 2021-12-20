@@ -9,6 +9,8 @@ TODO STRUCT
 	completed BYTE 1
 TODO ENDS
 
+TODO_SIZE = MAX_DESC_LEN + 4 + 1
+
 ; private func
 CountToDos PROTO
 

@@ -1,7 +1,6 @@
 
 
 MAX_DESC_LEN = 100
-TODO_SIZE = MAX_DESC_LEN + 4 + 1
 
 LoadUser PROTO, userPtr:DWORD
 UnloadUser PROTO
